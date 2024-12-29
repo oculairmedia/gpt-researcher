@@ -100,6 +100,14 @@ See the [Documentation](https://docs.gptr.dev/docs/gpt-researcher/getting-starte
     ```bash
     pip install -r requirements.txt
     python -m uvicorn main:app --reload
+    uvicorn backend.server.app:app --reload
+    ```
+
+To start the backend server:
+
+```bash
+uvicorn backend.server.app:app --reload
+```
     ```
 
 Visit [http://localhost:8000](http://localhost:8000) to start.

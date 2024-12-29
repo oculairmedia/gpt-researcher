@@ -8,7 +8,7 @@ def sanitize_filename(filename: str) -> str:
     This function ensures that the filename is compatible with all 
     operating systems by removing or replacing characters that are 
     not allowed in Windows file paths. Specifically, it replaces 
-    the following characters: < > : " / \\ | ? *
+    the following characters: < > : " / \\ | ? * and spaces
 
     Parameters:
     filename (str): The original filename to be sanitized.
@@ -20,7 +20,19 @@ def sanitize_filename(filename: str) -> str:
     >>> sanitize_filename('invalid:file/name*example?.txt')
     'invalid_file_name_example_.txt'
     
-    >>> sanitize_filename('valid_filename.txt')
+    >>> sanitize_filename('valid filename.txt')
     'valid_filename.txt'
     """
-    return re.sub(r'[<>:"/\\|?*]', '_', filename)
+    # First, replace spaces with underscores
+    filename = filename.replace(' ', '_')
+    
+    # Then replace other invalid characters
+    filename = re.sub(r'[<>:"/\\|?*]', '_', filename)
+    
+    # Replace multiple underscores with a single underscore
+    filename = re.sub(r'_+', '_', filename)
+    
+    # Remove any leading or trailing underscores
+    filename = filename.strip('_')
+    
+    return filename
