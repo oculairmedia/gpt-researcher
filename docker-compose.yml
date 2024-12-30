@@ -9,8 +9,10 @@ services:
       LANGCHAIN_API_KEY: ${LANGCHAIN_API_KEY}
     restart: always
     ports:
-      - 4593:4593
-      - 4684:4683
+      - "0.0.0.0:4593:4593"
+    env_file:
+      - .env
+
   gptr-nextjs:
     pull_policy: build
     image: gptresearcher/gptr-nextjs
