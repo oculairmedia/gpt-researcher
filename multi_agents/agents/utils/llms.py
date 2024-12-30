@@ -33,17 +33,42 @@ async def call_model(
 
         if response_format == "json":
             try:
-                cleaned_json_string = response.strip("```json\n")
-                return json.loads(cleaned_json_string)
+                # Remove any JSON markdown formatting
+                cleaned_json_string = response.strip("```json\n").strip("```")
+                
+                # Validate JSON structure
+                if not cleaned_json_string.strip().startswith("{"):
+                    raise ValueError("Response is not a valid JSON object")
+                    
+                # Attempt to parse JSON
+                parsed = json.loads(cleaned_json_string)
+                
+                # Validate parsed JSON contains required fields
+                if not isinstance(parsed, dict):
+                    raise ValueError("Parsed JSON is not an object")
+                    
+                return parsed
+                
             except Exception as e:
                 print("⚠️ Error in reading JSON, attempting to repair JSON")
                 logger.error(
-                    f"Error in reading JSON, attempting to repair reponse: {response}"
+                    f"Error in reading JSON, attempting to repair response: {response}"
                 )
-                return json_repair.loads(response)
+                try:
+                    # Attempt to repair JSON
+                    repaired = json_repair.loads(response)
+                    if not isinstance(repaired, dict):
+                        raise ValueError("Repaired JSON is not an object")
+                    return repaired
+                except Exception as repair_error:
+                    logger.error(f"Failed to repair JSON: {repair_error}")
+                    # Return empty JSON object as fallback
+                    return {}
         else:
             return response
 
     except Exception as e:
         print("⚠️ Error in calling model")
         logger.error(f"Error in calling model: {e}")
+        # Return empty JSON object as fallback
+        return {}

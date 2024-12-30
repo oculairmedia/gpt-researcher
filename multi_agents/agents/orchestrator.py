@@ -33,9 +33,15 @@ class ChiefEditorAgent:
         return int(time.time())
 
     def _create_output_directory(self):
-        output_dir = "./outputs/" + \
-            sanitize_filename(
-                f"run_{self.task_id}_{self.task.get('query')[0:40]}")
+        # Get the absolute path to the project root
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        
+        # Create outputs directory path
+        output_dir = os.path.join(
+            project_root,
+            "outputs",
+            sanitize_filename(f"run_{self.task_id}_{self.task.get('query')[0:40]}")
+        )
 
         os.makedirs(output_dir, exist_ok=True)
         return output_dir

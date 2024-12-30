@@ -2,6 +2,7 @@ import aiofiles
 import urllib
 import uuid
 import mistune
+import os
 
 
 async def write_to_file(filename: str, text: str) -> None:
@@ -11,6 +12,9 @@ async def write_to_file(filename: str, text: str) -> None:
         filename (str): The filename to write to.
         text (str): The text to write.
     """
+    # Create directory if it doesn't exist
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    
     # Convert text to UTF-8, replacing any problematic characters
     text_utf8 = text.encode('utf-8', errors='replace').decode('utf-8')
 
@@ -47,6 +51,9 @@ async def write_md_to_pdf(text: str, path: str) -> str:
     file_path = f"{path}/{task}.pdf"
 
     try:
+        # Create directory if it doesn't exist
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        
         # Moved imports to inner function to avoid known import errors with gobject-2.0
         from md2pdf.core import md2pdf
         md2pdf(file_path,
@@ -76,6 +83,9 @@ async def write_md_to_word(text: str, path: str) -> str:
     file_path = f"{path}/{task}.docx"
 
     try:
+        # Create directory if it doesn't exist
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        
         from htmldocx import HtmlToDocx
         from docx import Document
         # Convert report markdown to HTML
