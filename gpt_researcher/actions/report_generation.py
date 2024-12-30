@@ -245,7 +245,8 @@ async def generate_report(
             llm_kwargs=cfg.llm_kwargs,
             cost_callback=cost_callback,
         )
-    except:
+    except Exception as e:
+        logger.error(f"Error in generate_report (first attempt): {e}")
         try:
             report = await create_chat_completion(
                 model=cfg.smart_llm_model,
@@ -261,6 +262,6 @@ async def generate_report(
                 cost_callback=cost_callback,
             )
         except Exception as e:
-            print(f"Error in generate_report: {e}")
+            logger.error(f"Error in generate_report (second attempt): {e}")
 
     return report

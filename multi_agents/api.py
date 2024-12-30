@@ -50,6 +50,9 @@ async def create_research(task: ResearchTask):
             "data": research_report
         }
     except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"Error in research task: {error_trace}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.get("/")

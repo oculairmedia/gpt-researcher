@@ -68,7 +68,7 @@ async def create_chat_completion(
         return response
 
     logging.error(f"Failed to get response from {llm_provider} API")
-    raise RuntimeError(f"Failed to get response from {llm_provider} API")
+    raise RuntimeError(f"Failed to get response from {llm_provider} API") from None
 
 
 async def construct_subtopics(task: str, data: str, config, subtopics: list = []) -> list:
