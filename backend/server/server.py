@@ -10,6 +10,15 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from backend.utils import write_md_to_pdf, write_md_to_word, write_text_to_md
+
+async def generate_report_files(report: str, filename: str) -> Dict[str, str]:
+    """Generate PDF, DOCX, and MD files from the report"""
+    pdf_path = await write_md_to_pdf(report, filename)
+    docx_path = await write_md_to_word(report, filename)
+    md_path = await write_text_to_md(report, filename)
+    return {"pdf": pdf_path, "docx": docx_path, "md": md_path}
+
 from backend.server.websocket_manager import WebSocketManager
 from backend.server.server_utils import (
     get_config_dict,
