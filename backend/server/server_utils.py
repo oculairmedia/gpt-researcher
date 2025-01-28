@@ -225,11 +225,35 @@ async def handle_file_deletion(filename: str, DOC_PATH: str) -> JSONResponse:
         return JSONResponse(status_code=404, content={"message": "File not found"})
 
 
-async def execute_multi_agents(manager) -> Any:
+async def execute_multi_agents(manager, request) -> Any:
     websocket = manager.active_connections[0] if manager.active_connections else None
     if websocket:
-        report = await run_research_task("Is AI in a hype cycle?", websocket, stream_output)
-        return {"report": report}
+        # Create logs handler with task
+        logs_handler = CustomLogsHandler(websocket, request.task)
+        
+        # Initialize research with request parameters
+        from gpt_researcher import GPTResearcher
+        researcher = GPTResearcher(
+            query=request.task,
+            report_type=request.report_type,
+            report_format="markdown"
+        )
+        
+        # Conduct research
+        await logs_handler.send_json({"type": "logs", "message": "Starting research..."})
+        research_result = await researcher.conduct_research()
+        
+        # Generate report
+        await logs_handler.send_json({"type": "logs", "message": "Generating report..."})
+        report = await researcher.write_report()
+        
+        # Generate files
+        sanitized_filename = sanitize_filename(f"task_{int(time.time())}_{request.task}")
+        file_paths = await generate_report_files(report, sanitized_filename)
+        file_paths["json"] = os.path.relpath(logs_handler.log_file)
+        
+        await send_file_paths(websocket, file_paths)
+        return {"report": report, "files": file_paths}
     else:
         return JSONResponse(status_code=400, content={"message": "No active WebSocket connection"})
 
