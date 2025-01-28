@@ -112,24 +112,88 @@ async def list_files():
 
 @app.post("/api/multi_agents")
 async def run_multi_agents(request: Request):
-    data = await request.json()
-    task = data.get("task")
-    report_type = data.get("report_type", "research_report")
-    
-    if not task:
+    try:
+        data = await request.json()
+        task = data.get("task")
+        report_type = data.get("report_type", "research_report")
+        
+        if not task:
+            return JSONResponse(
+                status_code=400,
+                content={"status": "error", "message": "Task is required"}
+            )
+        
+        # Return immediately with a task ID
+        task_id = f"task_{int(time.time())}"
+        
+        # Start research in background
+        class ResearchRequest:
+            def __init__(self, task, report_type):
+                self.task = task
+                self.report_type = report_type
+        
+        req = ResearchRequest(task, report_type)
+        
+        # Return task accepted response
         return JSONResponse(
-            status_code=400,
-            content={"status": "error", "message": "Task is required"}
+            status_code=202,
+            content={
+                "status": "accepted",
+                "message": "Research task started",
+                "task_id": task_id,
+                "task": task
+            }
         )
-    
-    class ResearchRequest:
-        def __init__(self, task, report_type):
-            self.task = task
-            self.report_type = report_type
-    
-    req = ResearchRequest(task, report_type)
-    return await execute_multi_agents(manager, req)
+        
+    except Exception as e:
+        logger.error(f"Error in run_multi_agents: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "message": str(e)}
+        )
 
+
+@app.get("/api/tasks/{task_id}")
+async def get_task_status(task_id: str):
+    try:
+        # Check if task output files exist
+        sanitized_filename = task_id.replace("task_", "")
+        output_dir = "outputs"
+        
+        # Look for files with the task ID prefix
+        files = []
+        if os.path.exists(output_dir):
+            files = [f for f in os.listdir(output_dir) if f.startswith(sanitized_filename)]
+        
+        if not files:
+            return JSONResponse(
+                status_code=404,
+                content={
+                    "status": "not_found",
+                    "message": "Task not found or still processing"
+                }
+            )
+        
+        # Return file paths
+        file_paths = {
+            os.path.splitext(f)[1][1:]: os.path.join(output_dir, f)
+            for f in files
+        }
+        
+        return JSONResponse(
+            status_code=200,
+            content={
+                "status": "completed",
+                "files": file_paths
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"Error in get_task_status: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "message": str(e)}
+        )
 
 @app.post("/upload/")
 async def upload_file(file: UploadFile = File(...)):
