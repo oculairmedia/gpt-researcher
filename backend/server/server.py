@@ -111,8 +111,24 @@ async def list_files():
 
 
 @app.post("/api/multi_agents")
-async def run_multi_agents(request: ResearchRequest):
-    return await execute_multi_agents(manager, request)
+async def run_multi_agents(request: Request):
+    data = await request.json()
+    task = data.get("task")
+    report_type = data.get("report_type", "research_report")
+    
+    if not task:
+        return JSONResponse(
+            status_code=400,
+            content={"status": "error", "message": "Task is required"}
+        )
+    
+    class ResearchRequest:
+        def __init__(self, task, report_type):
+            self.task = task
+            self.report_type = report_type
+    
+    req = ResearchRequest(task, report_type)
+    return await execute_multi_agents(manager, req)
 
 
 @app.post("/upload/")
