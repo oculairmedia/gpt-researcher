@@ -112,6 +112,12 @@ async def list_files():
     return {"files": files}
 
 
+import asyncio
+from gpt_researcher import GPTResearcher
+
+# Store active research tasks
+research_tasks = {}
+
 @app.post("/api/multi_agents")
 async def run_multi_agents(request: Request):
     try:
@@ -125,16 +131,48 @@ async def run_multi_agents(request: Request):
                 content={"status": "error", "message": "Task is required"}
             )
         
-        # Return immediately with a task ID
+        # Generate task ID
         task_id = f"task_{int(time.time())}"
         
-        # Start research in background
-        class ResearchRequest:
-            def __init__(self, task, report_type):
-                self.task = task
-                self.report_type = report_type
+        # Initialize researcher
+        researcher = GPTResearcher(
+            query=task,
+            report_type=report_type,
+            report_format="markdown"
+        )
         
-        req = ResearchRequest(task, report_type)
+        # Store task info
+        research_tasks[task_id] = {
+            "status": "running",
+            "task": task,
+            "report": None,
+            "files": None,
+            "researcher": researcher
+        }
+        
+        # Start research in background
+        async def run_research():
+            try:
+                await researcher.conduct_research()
+                report = await researcher.write_report()
+                
+                # Generate files
+                sanitized_filename = f"{task_id}_{task[:50]}"  # Use first 50 chars of task
+                file_paths = await generate_report_files(report, sanitized_filename)
+                
+                # Update task info
+                research_tasks[task_id].update({
+                    "status": "completed",
+                    "report": report,
+                    "files": file_paths
+                })
+            except Exception as e:
+                logger.error(f"Error in research task {task_id}: {str(e)}")
+                research_tasks[task_id]["status"] = "error"
+                research_tasks[task_id]["error"] = str(e)
+        
+        # Start the research task
+        asyncio.create_task(run_research())
         
         # Return task accepted response
         return JSONResponse(
@@ -158,36 +196,37 @@ async def run_multi_agents(request: Request):
 @app.get("/api/tasks/{task_id}")
 async def get_task_status(task_id: str):
     try:
-        # Check if task output files exist
-        sanitized_filename = task_id.replace("task_", "")
-        output_dir = "outputs"
-        
-        # Look for files with the task ID prefix
-        files = []
-        if os.path.exists(output_dir):
-            files = [f for f in os.listdir(output_dir) if f.startswith(sanitized_filename)]
-        
-        if not files:
+        # Check if task exists
+        if task_id not in research_tasks:
             return JSONResponse(
                 status_code=404,
                 content={
                     "status": "not_found",
-                    "message": "Task not found or still processing"
+                    "message": "Task not found"
                 }
             )
         
-        # Return file paths
-        file_paths = {
-            os.path.splitext(f)[1][1:]: os.path.join(output_dir, f)
-            for f in files
+        task_info = research_tasks[task_id]
+        
+        # Return task status
+        response = {
+            "status": task_info["status"],
+            "task": task_info["task"]
         }
+        
+        # Add report and files if completed
+        if task_info["status"] == "completed":
+            response.update({
+                "report": task_info["report"],
+                "files": task_info["files"]
+            })
+        # Add error if failed
+        elif task_info["status"] == "error":
+            response["error"] = task_info.get("error")
         
         return JSONResponse(
             status_code=200,
-            content={
-                "status": "completed",
-                "files": file_paths
-            }
+            content=response
         )
         
     except Exception as e:
