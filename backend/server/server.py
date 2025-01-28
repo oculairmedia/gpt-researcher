@@ -50,8 +50,17 @@ logging.basicConfig(
 
 class ResearchRequest(BaseModel):
     task: str
-    report_type: str
-    agent: str
+    report_type: str = "research_report"
+    agent: str = "researcher"
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "task": "What were the key innovations of the Wright brothers?",
+                "report_type": "research_report",
+                "agent": "researcher"
+            }
+        }
 
 
 class ConfigRequest(BaseModel):
@@ -128,32 +137,31 @@ from gpt_researcher import GPTResearcher
 research_tasks = {}
 
 @app.post("/api/multi_agents")
-async def run_multi_agents(request: Request):
+async def run_multi_agents(request: ResearchRequest):
+    """
+    Start a new research task.
+    
+    Args:
+        request (ResearchRequest): The research request containing task, report_type, and agent.
+        
+    Returns:
+        JSONResponse: Response containing task ID and status.
+    """
     try:
-        data = await request.json()
-        task = data.get("task")
-        report_type = data.get("report_type", "research_report")
-        
-        if not task:
-            return JSONResponse(
-                status_code=400,
-                content={"status": "error", "message": "Task is required"}
-            )
-        
         # Generate task ID
         task_id = f"task_{int(time.time())}"
         
         # Initialize researcher
         researcher = GPTResearcher(
-            query=task,
-            report_type=report_type,
+            query=request.task,
+            report_type=request.report_type,
             report_format="markdown"
         )
         
         # Store task info
         research_tasks[task_id] = {
             "status": "running",
-            "task": task,
+            "task": request.task,
             "report": None,
             "files": None,
             "researcher": researcher
@@ -166,7 +174,7 @@ async def run_multi_agents(request: Request):
                 report = await researcher.write_report()
                 
                 # Generate files
-                sanitized_filename = f"{task_id}_{task[:50]}"  # Use first 50 chars of task
+                sanitized_filename = f"{task_id}_{request.task[:50]}"  # Use first 50 chars of task
                 file_paths = await generate_report_files(report, sanitized_filename)
                 
                 # Update task info
@@ -190,7 +198,7 @@ async def run_multi_agents(request: Request):
                 "status": "accepted",
                 "message": "Research task started",
                 "task_id": task_id,
-                "task": task
+                "task": request.task
             }
         )
         
